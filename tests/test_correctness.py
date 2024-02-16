@@ -11,6 +11,7 @@ from tools import cat, find, touch, wc
 parsl.load(config)
 
 test_runtime_files = os.path.join(os.getcwd(), "tests", "test-runtime-files")
+test_report_files = os.path.join(os.getcwd(), "tests", "test-reports")
 
 
 
@@ -201,3 +202,54 @@ def test_cat() -> None:
             f" {os.path.join(test_runtime_files, 'cat_redirect_file_manual.txt')}"
         ) == 0
     )
+
+def cat_cat_workflow():
+    """Test for workflow cat, cat -> cat"""
+
+    # Remove Prev Generated Files if Present
+    os.system(
+        "rm -rf"
+        f" {os.path.join(test_report_files, 'q1_report.csv')}"
+        f" {os.path.join(test_report_files, 'q2_report.csv')}"
+        f" {os.path.join(test_report_files, 'half_year_report.csv')}"
+    )
+    
+    q1 = cat(
+        from_files=[
+            File(os.path.join(test_report_files, "january_report.csv")),
+            File(os.path.join(test_report_files, "february_report.csv")),
+            File(os.path.join(test_report_files, "march_report.csv")),
+        ],
+        redirect_to_file=os.path.join(test_report_files, "q1_report.csv"),
+        output_file=File(os.path.join(test_report_files, "q1_report.csv")),
+    )
+
+    q2 = cat(
+        from_files=[
+            File(os.path.join(test_report_files, "april_report.csv")),
+            File(os.path.join(test_report_files, "may_report.csv")),
+            File(os.path.join(test_report_files, "june_report.csv")),
+        ],
+        redirect_to_file=os.path.join(test_report_files, "q2_report.csv"),
+        output_file=File(os.path.join(test_report_files, "q2_report.csv")),
+            
+    )
+
+    half_year_report = cat(
+        from_files=[q1.outputs[0], q2.outputs[0]],
+        redirect_to_file=os.path.join(test_report_files, "half_year_report.csv"),
+        output_file=File(os.path.join(test_report_files, "half_year_report.csv")),
+    )
+
+    half_year_report.result()
+
+    os.system(
+        "rm"
+        f" {os.path.join(test_report_files, 'q1_report.csv')}"
+        f" {os.path.join(test_report_files, 'q2_report.csv')}"
+        f" {os.path.join(test_report_files, 'half_year_report.csv')}"
+    )
+
+def test_workflows() -> None:
+    """Test for various workflows."""
+    cat_cat_workflow()
