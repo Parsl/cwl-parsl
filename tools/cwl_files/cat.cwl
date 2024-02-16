@@ -8,7 +8,7 @@ inputs:
     inputBinding:
       position: 1
     
-  to_file:
+  redirect_to_file:
     type: string
     inputBinding:
       position: 2
