@@ -14,6 +14,7 @@ test_runtime_files = os.path.join(os.getcwd(), "tests", "test-runtime-files")
 test_report_files = os.path.join(os.getcwd(), "tests", "test-reports")
 
 
+
 def test_find() -> None:
     """Test for the find CWL CommandLineTool."""
     # Test 1
@@ -33,7 +34,6 @@ def test_find() -> None:
         output_file=File(os.path.join(test_runtime_files, "find_stdout_2.txt")),
     ).result()
 
-
 def test_touch() -> None:
     """Test for the touch CWL CommandLineTool."""
     # Test 1
@@ -48,7 +48,6 @@ def test_touch() -> None:
         ],
     ).result()
 
-
 def test_word_count() -> None:
     """Test for the wc CWL CommandLineTool."""
     # Test 1
@@ -58,17 +57,15 @@ def test_word_count() -> None:
         stderr=os.path.join(test_runtime_files, "word_count_stderr.txt"),
     ).result()
 
-
 def test_cat() -> None:
     """Test for the cat CWL CommandLineTool."""
     # Remove Prev Generated Files if Present
     # Test 1
     cat(
-        from_files=[File(os.path.join("tests", "test_correctness.py"))],
-        redirect_to_file=os.path.join(test_runtime_files, "cat_redirect_file.txt"),
-        output_file=File(os.path.join(test_runtime_files, "cat_redirect_file.txt")),
+        from_files=[File(os.path.join('tests', 'test_correctness.py'))],
+        redirect_to_file=os.path.join(test_runtime_files, 'cat_redirect_file.txt'),
+        output_file=File(os.path.join(test_runtime_files, 'cat_redirect_file.txt'))
     ).result()
-
 
 def cat_cat_workflow():
     """Test for workflow cat, cat -> cat"""
@@ -90,6 +87,7 @@ def cat_cat_workflow():
         ],
         redirect_to_file=os.path.join(test_report_files, "q2_report.csv"),
         output_file=File(os.path.join(test_report_files, "q2_report.csv")),
+            
     )
 
     half_year_report = cat(
@@ -99,7 +97,6 @@ def cat_cat_workflow():
     )
 
     half_year_report.result()
-
 
 def test_workflows() -> None:
     """Test for various workflows."""

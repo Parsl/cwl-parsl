@@ -2,7 +2,7 @@
 
 import pytest
 
-from tools import cat, find, touch, wc
+from tools import find, touch
 
 
 def test_missing_args() -> None:
