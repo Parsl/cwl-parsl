@@ -1,0 +1,38 @@
+name: CI for CWLApp
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  run-tests:
+    strategy:
+      fail-fast: false # if true, then if one task fails all fails, but we need which version is failing
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python-version:
+          - "3.8"
+          - "3.9"
+          - "3.10"
+          - "3.11"
+          - "3.12-dev"
+          - "pypy-3.8"
+          - "pypy-3.9"
+
+    name: Test
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout code # bring code into github runner
+        uses: actions/checkout@v3
+
+      - name: Set up python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: python3 -m pip install pytest .
+
+      - name: Run tests
+        run: pytest
