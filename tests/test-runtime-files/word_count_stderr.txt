@@ -1,3 +1,0 @@
---> executable follows <--
-wc tests/test_correctness.py
---> end executable <--

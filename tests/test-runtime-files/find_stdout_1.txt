@@ -1,6 +1,0 @@
-./tools/cwl_files/cat.cwl
-./tools/cwl_files/find.cwl
-./tools/cwl_files/wc.cwl
-./tools/cwl_files/touch.cwl
-./tests/invalid-cwl-files/touch_invalid.cwl
-./tests/invalid-cwl-files/wc_invalid.cwl
