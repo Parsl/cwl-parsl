@@ -34,7 +34,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Install dependencies
-        run: python3 -m pip install pytest pyyaml parsl pprint schema
+        run: python3 -m pip install pytest pyyaml parsl prettyprint schema
 
       - name: Run tests
         run: pytest
