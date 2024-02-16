@@ -6,11 +6,12 @@ import parsl
 from parsl.configs.local_threads import config
 from parsl.data_provider.files import File
 
+from tools import cat, find, touch, wc
+
 parsl.load(config)
 
 test_runtime_files = os.path.join(os.getcwd(), "tests", "test-runtime-files")
 
-from tools import cat, find, touch, wc
 
 
 def test_find() -> None:
@@ -162,8 +163,9 @@ def test_word_count() -> None:
     )
 
 def test_cat() -> None:
+    """Test for the cat CWL CommandLineTool."""
     # Remove Prev Generated Files if Present
-    os.system( 
+    os.system(
             "rm -rf" 
             f" {os.path.join(test_runtime_files, 'cat_redirect_file_manual.txt')}"
             f" {os.path.join(test_runtime_files, 'cat_redirect_file.txt')}"
@@ -190,7 +192,7 @@ def test_cat() -> None:
         os.path.join(test_runtime_files, 'cat_redirect_file_manual.txt'), 'r', encoding='utf-8'
     ) as f2:
         assert f1.readlines() == f2.readlines()
-    
+
     # Remove Generated Files
     assert(
         os.system(

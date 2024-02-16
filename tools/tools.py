@@ -1,3 +1,5 @@
+"""List of CWL CommandLineTool CWLApps"""
+
 import os
 
 from cwl import CWLApp

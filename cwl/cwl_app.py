@@ -14,7 +14,7 @@ from schema import Optional as Opt
 from schema import Or, Regex, Schema, SchemaError
 
 # pylint: disable=too-many-instance-attributes
-class InputArgument: 
+class InputArgument:
     """Class to represent input arguments for a command line tool"""
 
     __slots__ = (
