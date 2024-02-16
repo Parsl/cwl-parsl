@@ -516,17 +516,14 @@ class CWLApp:
             if file.arg_type == "File" and file.arg_id in kwargs:
                 if file.array:
                     for f in kwargs[file.arg_id]:
-                        if not (isinstance(f, File) or isinstance(f, DataFuture)):
+                        if not isinstance(f, (File, DataFuture)):
                             raise TypeError(
                                 f"{file.arg_id}: Expected list[{File}] type, got {type(f)}"
                             )
 
                     return kwargs[file.arg_id]
 
-                if not (
-                    isinstance(kwargs[file.arg_id], File)
-                    or isinstance(kwargs[file.arg_id], DataFuture)
-                ):
+                if not isinstance(kwargs[file.arg_id], (File, DataFuture)):
                     raise TypeError(
                         f"{file.arg_id}: Expected {File} type, got {type(kwargs[file.arg_id])}"
                     )
