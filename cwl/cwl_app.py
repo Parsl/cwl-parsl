@@ -14,6 +14,7 @@ from schema import Optional as Opt
 from schema import Or, Regex, Schema, SchemaError
 
 
+# pylint: disable=too-many-instance-attributes
 class InputArgument:
     """Class to represent input arguments for a command line tool"""
 
@@ -38,6 +39,7 @@ class InputArgument:
     LONG = "long"
     STRING = "string"
 
+    # pylint: disable=too-many-arguments
     def __init__(
         self,
         arg_id: str,
@@ -226,6 +228,7 @@ class CWLApp:
         the input and output arguments in the CWL file.
         """
 
+        # pylint: disable=unused-argument
         @bash_app
         def __parsl_bash_app__(
             command: str,
@@ -413,7 +416,7 @@ class CWLApp:
 
         elif isinstance(cwl_inputs, dict):
             inputs.extend(
-                process_input(id, inpt_arg_opts) for id, inpt_arg_opts in cwl_inputs.items()
+                process_input(id, input_arg_opts) for id, input_arg_opts in cwl_inputs.items()
             )
 
         inputs.sort()
@@ -574,9 +577,3 @@ class CWLApp:
         }
 
         return cmd_args
-
-    def __run_local(self, **kwargs):
-        """Local run of the command"""
-        print("RESULT OF RUNNING COMMAND LINE TOOL:")
-        exit_code = os.system(self.get_command(**kwargs))
-        print(f"EXIT CODE: {exit_code}")
