@@ -21,10 +21,10 @@ inputs:
       prefix: -maxdepth
       position: 3
 
-  to_file:
+  redirect_to_file:
     type: string
     inputBinding:
-      position: 2
+      position: 4
       prefix: ">>"
       separate: true
 

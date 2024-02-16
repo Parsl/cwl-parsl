@@ -1,3 +1,5 @@
+"""List of CWL CommandLineTool CWLApps"""
+
 import os
 
 from cwl import CWLApp
@@ -11,5 +13,3 @@ find = CWLApp(os.path.join("tools", "cwl_files", "find.cwl"))
 touch = CWLApp(os.path.join("tools", "cwl_files", "touch.cwl"))
 
 wc = CWLApp(os.path.join("tools", "cwl_files", "wc.cwl"))
-
-# etc...
