@@ -1,1 +1,0 @@
-from cwl import CWLApp
