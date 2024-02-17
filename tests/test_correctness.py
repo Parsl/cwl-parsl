@@ -23,6 +23,8 @@ def test_find() -> None:
         name="*.cwl",
         redirect_to_file=os.path.join(test_runtime_files, "find_stdout_1.txt"),
         output_file=File(os.path.join(test_runtime_files, "find_stdout_1.txt")),
+        stdout=os.path.join(test_runtime_files, "find_stdout_1.stdout"),
+        stderr=os.path.join(test_runtime_files, "find_stderr_1.stderr"),
     ).result()
 
     # Test 2
@@ -31,6 +33,8 @@ def test_find() -> None:
         name="*.cwl",
         redirect_to_file=os.path.join(test_runtime_files, "find_stdout_2.txt"),
         output_file=File(os.path.join(test_runtime_files, "find_stdout_2.txt")),
+        stdout=os.path.join(test_runtime_files, "find_stdout_2.stdout"),
+        stderr=os.path.join(test_runtime_files, "find_stderr_2.stderr"),
     ).result()
 
 

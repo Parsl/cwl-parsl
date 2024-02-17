@@ -31,3 +31,7 @@ inputs:
 outputs:
   output_file:
     type: File
+  stdout:
+    type: stdout
+  stderr:
+    type: stderr
