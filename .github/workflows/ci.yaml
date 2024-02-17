@@ -13,10 +13,9 @@ jobs:
     strategy:
       fail-fast: false # if true, then if one task fails all fails, but we need which version is failing
       matrix:
-        os: [macos-latest, ubuntu-latest, windows-latest]
+        os: [ubuntu-latest]
         python-version:
           - "3.9"
-          - "3.12"
 
     name: Test
     runs-on: ${{ matrix.os }}

@@ -14,39 +14,41 @@ test_runtime_files = os.path.join(os.getcwd(), "tests", "test-runtime-files")
 test_report_files = os.path.join(os.getcwd(), "tests", "test-reports")
 
 
-# def test_find() -> None:
-#     """Test for the find CWL CommandLineTool."""
-#     # Test 1
-#     find(
-#         dir=".",
-#         maxdepth=3,
-#         name="*.cwl",
-#         redirect_to_file=os.path.join(test_runtime_files, "find_stdout_1.txt"),
-#         output_file=File(os.path.join(test_runtime_files, "find_stdout_1.txt")),
-#     ).result()
+def test_find() -> None:
+    """Test for the find CWL CommandLineTool."""
+    # Test 1
+    find(
+        dir=".",
+        maxdepth=3,
+        name="*.cwl",
+        redirect_to_file=os.path.join(test_runtime_files, "find_stdout_1.txt"),
+        output_file=File(os.path.join(test_runtime_files, "find_stdout_1.txt")),
+    ).result()
 
-#     # Test 2
-#     find(
-#         dir=".",
-#         name="*.cwl",
-#         redirect_to_file=os.path.join(test_runtime_files, "find_stdout_2.txt"),
-#         output_file=File(os.path.join(test_runtime_files, "find_stdout_2.txt")),
-#     ).result()
+    # Test 2
+    find(
+        dir=".",
+        name="*.cwl",
+        redirect_to_file=os.path.join(test_runtime_files, "find_stdout_2.txt"),
+        output_file=File(os.path.join(test_runtime_files, "find_stdout_2.txt")),
+    ).result()
 
 
-# def test_touch() -> None:
-#     """Test for the touch CWL CommandLineTool."""
-#     # Test 1
-#     touch(
-#         filenames=[
-#             os.path.join(test_runtime_files, "touch1.txt"),
-#             os.path.join(test_runtime_files, "touch2.txt"),
-#         ],
-#         output_files=[
-#             File(os.path.join(test_runtime_files, "touch1.txt")),
-#             File(os.path.join(test_runtime_files, "touch2.txt")),
-#         ],
-#     ).result()
+def test_touch() -> None:
+    """Test for the touch CWL CommandLineTool."""
+    # Test 1
+    touch(
+        filenames=[
+            os.path.join(test_runtime_files, "test1.txt"),
+            os.path.join(test_runtime_files, "test2.txt"),
+        ],
+        output_files=[
+            File(os.path.join(test_runtime_files, "test1.txt")),
+            File(os.path.join(test_runtime_files, "test2.txt")),
+        ],
+        stdout=os.path.join(test_runtime_files, "touch_stdout.stdout"),
+        stderr=os.path.join(test_runtime_files, "touch_stderr.stderr"),
+    ).result()
 
 
 def test_word_count() -> None:

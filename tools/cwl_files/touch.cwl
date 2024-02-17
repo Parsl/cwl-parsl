@@ -15,3 +15,7 @@ outputs:
     items: File
     outputBinding:
       glob: $(inputs.filenames)
+  stdout:
+    type: stdout
+  stderr:
+    type: stderr
