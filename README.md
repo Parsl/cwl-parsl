@@ -45,13 +45,11 @@ echo <message>
 ---
 ### Running CommandLineTool app with Parsl
 
-Parsl’s Bash app allows you to wrap execution of external applications from the command-line as you would in a Bash shell. It can also be used to execute Bash scripts directly. To define a Bash app, the wrapped Python function must return the command-line string to be executed. 
+CWLApp uses Parsl's bash_app internally for running the CommandLineTools and returns a DataFuture.
 
-To capture stdout and stderr, the function should take arguments 'stdout' and 'stderr'. 
+DataFutures represent the files produces by execution of an asynchronous app. Parsl’s dataflow model, in which data flows from one app to another via files, requires such a construct to enable apps to validate creation of required files and to subsequently resolve dependencies when input files are created. When invoking an app, Parsl requires that a list of output files be specified (using the ```outputs``` keyword argument). A DataFuture for each file is returned by the app when it is executed. Throughout execution of the app, Parsl will monitor these files to 1) ensure they are created, and 2) pass them to any dependent apps.
 
-The input files used by the command and any output files created during execution should also be mentioned in the function arguments using arrays of parsl's File objects
-
-Learn more about bash_app [here](https://parsl.readthedocs.io/en/stable/1-parsl-introduction.html#Bash-Apps)
+Learn more about bash_app, DataFuture [here](https://parsl.readthedocs.io/en/stable/1-parsl-introduction.html#Bash-Apps)
 
 ### Example 1: find.cwl - cwl for the 'find' command
 ```yml
