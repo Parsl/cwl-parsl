@@ -116,7 +116,9 @@ class InputArgument:
         if value is None:
             value = self.default
 
-        res_string = self.__process_value(value)
+        res_string = self.__process_value(
+            value, str_quote='"' if self.arg_type == self.STRING else ""
+        )
 
         if self.prefix:
             res_string = (
@@ -130,15 +132,26 @@ class InputArgument:
             return str(self.prefix)
         return ""
 
-    def __process_value(self, value: Any) -> str:
+    def __process_value(self, value: Any, str_quote="") -> str:
         if self.array:
-            return self.__process_array_value(value)
+            return self.__process_array_value(value, str_quote)
 
-        return str(value) if self.arg_type != self.FILE else str(value.filepath)
+        return (
+            f"{str_quote}{str(value)}{str_quote}"
+            if self.arg_type != self.FILE
+            else f"{str_quote}{str(value.filepath)}{str_quote}"
+        )
 
-    def __process_array_value(self, value: Any) -> str:
+    def __process_array_value(self, value: Any, str_quote="") -> str:
         itm_sep = self.item_separator if self.item_separator else " "
-        str_value_list = [str(v) if self.arg_type != self.FILE else str(v.filepath) for v in value]
+        str_value_list = [
+            (
+                f"{str_quote}{str(v)}{str_quote}"
+                if self.arg_type != self.FILE
+                else f"{str_quote}{str(v.filepath)}{str_quote}"
+            )
+            for v in value
+        ]
 
         return itm_sep.join(str_value_list)
 
