@@ -14,7 +14,6 @@ from schema import Optional as Opt
 from schema import Or, Regex, Schema, SchemaError
 
 
-# pylint: disable=too-many-instance-attributes
 class InputArgument:
     """Class to represent input arguments for a command line tool"""
 
@@ -39,7 +38,6 @@ class InputArgument:
     LONG = "long"
     STRING = "string"
 
-    # pylint: disable=too-many-arguments
     def __init__(
         self,
         arg_id: str,
@@ -89,7 +87,7 @@ class InputArgument:
 
         input_arg_str = ""
         if self.array:
-            itm_sep = self.item_separator if self.item_separator else " "
+            itm_sep = self.item_separator or " "
             input_arg_str += f"<{self.arg_id}_1{itm_sep}...{itm_sep}{self.arg_id}_n>"
 
         else:
@@ -122,15 +120,13 @@ class InputArgument:
 
         if self.prefix:
             res_string = (
-                f"{self.prefix} " + res_string if self.separate else f"{self.prefix}{res_string}"
+                f"{self.prefix} {res_string}" if self.separate else f"{self.prefix}{res_string}"
             )
 
         return res_string
 
     def __boolean_to_string(self, value: Any) -> str:
-        if value:
-            return str(self.prefix)
-        return ""
+        return str(self.prefix) if value else ""
 
     def __process_value(self, value: Any, str_quote="") -> str:
         if self.array:
@@ -143,7 +139,7 @@ class InputArgument:
         )
 
     def __process_array_value(self, value: Any, str_quote="") -> str:
-        itm_sep = self.item_separator if self.item_separator else " "
+        itm_sep = self.item_separator or " "
         str_value_list = [
             (
                 f"{str_quote}{str(v)}{str_quote}"
@@ -156,16 +152,9 @@ class InputArgument:
         return itm_sep.join(str_value_list)
 
     def __lt__(self, other) -> bool:
-        if self.position is None and other.position is None:
-            return True
-
         if self.position is None:
-            return False
-
-        if other.position is None:
-            return True
-
-        return self.position < other.position
+            return other.position is None
+        return True if other.position is None else self.position < other.position
 
 
 OutputArgument = namedtuple("Output", ["arg_id", "arg_type", "array"])
@@ -241,7 +230,6 @@ class CWLApp:
         the input and output arguments in the CWL file.
         """
 
-        # pylint: disable=unused-argument
         @bash_app
         def __parsl_bash_app__(
             command: str,
@@ -529,24 +517,22 @@ class CWLApp:
         """
 
         def handle_input_output_files(file):
-            if file.arg_type == "File" and file.arg_id in kwargs:
-                if file.array:
-                    for f in kwargs[file.arg_id]:
-                        if not isinstance(f, (File, DataFuture)):
-                            raise TypeError(
-                                f"{file.arg_id}: Expected list[{File}] type, got {type(f)}"
-                            )
+            if file.arg_type != "File" or file.arg_id not in kwargs:
+                return []
 
-                    return kwargs[file.arg_id]
+            if file.array:
+                for f in kwargs[file.arg_id]:
+                    if not isinstance(f, (File, DataFuture)):
+                        raise TypeError(f"{file.arg_id}: Expected list[{File}] type, got {type(f)}")
 
-                if not isinstance(kwargs[file.arg_id], (File, DataFuture)):
-                    raise TypeError(
-                        f"{file.arg_id}: Expected {File} type, got {type(kwargs[file.arg_id])}"
-                    )
+                return kwargs[file.arg_id]
 
-                return [kwargs[file.arg_id]]
+            if not isinstance(kwargs[file.arg_id], (File, DataFuture)):
+                raise TypeError(
+                    f"{file.arg_id}: Expected {File} type, got {type(kwargs[file.arg_id])}"
+                )
 
-            return []
+            return [kwargs[file.arg_id]]
 
         # Check if all the output arguments are provided
         stdout = None
