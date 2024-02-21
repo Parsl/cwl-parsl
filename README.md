@@ -1,6 +1,6 @@
-# Command Line Tool app tutorial
+# CWLApp tutorial
 
-Command Line Tool is a python app that allows you to integrate CWL 'CommandLineTool' files with parsl.
+CWLApp is a python app that allows you to integrate CWL 'CommandLineTool' files with parsl.
 
 Parsl is a python parallel scripting library. 
 
@@ -27,9 +27,9 @@ outputs:
     type: stdout
 ```
 
-### Creating a CommandLineTool app
+### Creating a CWLApp
 ```python
-from cwl import CommandLineTool
+from cwl import CWLApp
 
 # app takes one argument - path to cwl file
 echo = CWLApp("echo.cwl")
@@ -43,9 +43,9 @@ echo <message>
 ```
 
 ---
-### Running CommandLineTool app with Parsl
+### Running CWLapp app with Parsl
 
-CWLApp uses Parsl's bash_app internally for running the CommandLineTools and returns a DataFuture.
+CWLApp uses Parsl's bash_app internally for running the CWLapps and returns a DataFuture.
 
 DataFutures represent the files produces by execution of an asynchronous app. Parsl’s dataflow model, in which data flows from one app to another via files, requires such a construct to enable apps to validate creation of required files and to subsequently resolve dependencies when input files are created. When invoking an app, Parsl requires that a list of output files be specified (using the ```outputs``` keyword argument). A DataFuture for each file is returned by the app when it is executed. Throughout execution of the app, Parsl will monitor these files to 1) ensure they are created, and 2) pass them to any dependent apps.
 
