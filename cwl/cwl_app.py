@@ -153,7 +153,7 @@ class InputArgument:
 
     def __lt__(self, other) -> bool:
         if self.position is None:
-            return other.position is None
+            return other.position is not None
         return True if other.position is None else self.position < other.position
 
 
@@ -331,7 +331,7 @@ class CWLApp:
                             "id": Regex(
                                 r"^[a-zA-Z_][a-zA-Z0-9_]*$",
                             ),
-                            "type": input_simple_types,
+                            "type": input_types_schema,
                             Opt("items"): Or(*input_simple_types),
                             Opt("default"): Or(
                                 int, float, str, bool, list, error="Invalid default value"
@@ -499,7 +499,7 @@ class CWLApp:
             else:
                 raise ArgumentMissing(f"missing required value for argument: {input_arg.arg_id}")
 
-        return f"{self.__base_command} {' '.join(input_args)}"
+        return f"{self.__base_command} {' '.join(filter(None, input_args))}"
 
     def __get_parsl_bash_app_args(self, **kwargs) -> Dict[str, Any]:
         """Args needed to run the command using Parsl
