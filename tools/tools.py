@@ -2,7 +2,7 @@
 
 import os
 
-from cwl.cwl_app import CWLApp
+from cwl import CWLApp
 
 # Create CommandLineTool objects CWL files
 

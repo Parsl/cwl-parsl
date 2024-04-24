@@ -4,7 +4,7 @@ import os
 
 import pytest
 
-from cwl.cwl_app import CWLApp
+from cwl import CWLApp
 
 invalid_cwl_files = os.path.join(os.getcwd(), "tests", "invalid-cwl-files")
 
