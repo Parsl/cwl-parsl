@@ -38,10 +38,11 @@ def find_references(data: Dict[str, Any], pattern=r"\$\(([^)]+)\)") -> Set:
     elif isinstance(data, str):
         matches = re.findall(pattern, data)
         references.update(matches)
+
     return references
 
 
-def get_nested_value(data: Dict[str, Any], key: str) -> Any:
+def get_matching_value(data: Dict[str, Any], key: str) -> Any:
     """
     Retrieve a value from nested dictionaries using a dot-separated key.
 
@@ -62,12 +63,15 @@ def get_nested_value(data: Dict[str, Any], key: str) -> Any:
     """
     keys = key.split(".")
     value = data
+
     for k in keys:
         if not isinstance(value, dict):
             return None
+
         value = value.get(k)
         if value is None:
             return None
+
     return value
 
 
@@ -101,14 +105,18 @@ def create_mapping(cwl: Dict[str, Any], inputs: Dict[str, Any]) -> Dict:
 
         The function will return {"inputs.message": "Hello, World!"}
     """
+    # TODO: Rename variables to be more descriptive
     reference_pattern = r"\$\(([^)]+)\)"  # $(...) patterns
     all_references = find_references(cwl, reference_pattern)
 
     mapping = {}
     for ref in all_references:
-        value = get_nested_value(inputs, ref)
+        value = get_matching_value(inputs, ref)
+
         if value is not None:
             mapping[ref] = value
+        else:
+            raise KeyError(f"Reference '{ref}' not found in inputs.")
 
     return mapping
 
@@ -157,8 +165,8 @@ def evaluate_expression(expression: str, namespace: Dict[str, Any]) -> Any:
         If expression is 'f"{2 + 3}"', the function will return 5.
     """
     try:
-        # Evaluate the expression as an f-string by using eval
         return eval(f'f"""{expression}"""', namespace)
+
     except Exception as e:
         print(f"Error evaluating expression '{expression}': {e}")
         return expression
@@ -209,7 +217,7 @@ def evaluate_yaml_expressions(
     return data
 
 
-def parse_yaml_file(cwl_file: str, input_file: str) -> Dict[str, Any]:
+def parse_yaml_file(cwl_file: str, input_file: str) -> Dict[str, Any] | None:
     """
     Convert a CWL file (yaml) to a dictionary and
     evaluate inline python expressions.
@@ -253,9 +261,23 @@ def parse_yaml_file(cwl_file: str, input_file: str) -> Dict[str, Any]:
     with open(input_file, "r") as file:
         inputs = yaml.safe_load(file)
 
+    # check if InlinePythonRequirement is present
+    for requirement in cwl.get("requirements", []):
+        if requirement.get("class") == "InlinePythonRequirement":
+            break
+
+    else:
+        return cwl
+
     namespace = {}
-    for func_code in cwl["expressionLib"]:
-        exec(func_code, namespace)
+    expression_lib = cwl["requirements"][0]["expressionLib"]
+    for inline_python in expression_lib:
+        try:
+            exec(inline_python, namespace)
+
+        except Exception as e:
+            print(f"Error executing inline python: {e}")
+            return None
 
     mapping_dict = create_mapping(cwl, inputs)
 
