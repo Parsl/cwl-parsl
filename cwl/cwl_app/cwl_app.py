@@ -3,15 +3,14 @@
 import os
 import pprint
 from collections import namedtuple
+from concurrent.futures import Executor
 from typing import Any, Dict, List, Optional, Union
 
 import yaml
-from parsl.app.app import bash_app
 from parsl.app.futures import DataFuture
 from parsl.data_provider.files import File
-from schema import And
-from schema import Optional as Opt
-from schema import Or, Regex, Schema, SchemaError
+
+from cwl.cwl_app.validate import validate
 
 
 class InputArgument:
@@ -88,7 +87,9 @@ class InputArgument:
         input_arg_str = ""
         if self.array:
             itm_sep = self.item_separator or " "
-            input_arg_str += f"<{self.arg_id}_1{itm_sep}...{itm_sep}{self.arg_id}_n>"
+            input_arg_str += (
+                f"<{self.arg_id}_1{itm_sep}...{itm_sep}{self.arg_id}_n>"
+            )
 
         else:
             input_arg_str += f"<{self.arg_id}>"
@@ -120,7 +121,9 @@ class InputArgument:
 
         if self.prefix:
             res_string = (
-                f"{self.prefix} {res_string}" if self.separate else f"{self.prefix}{res_string}"
+                f"{self.prefix} {res_string}"
+                if self.separate
+                else f"{self.prefix}{res_string}"
             )
 
         return res_string
@@ -130,46 +133,31 @@ class InputArgument:
 
     def __process_value(self, value: Any, str_quote="") -> str:
         if self.array:
-            return self.__process_array_value(value, str_quote)
+            itm_sep = self.item_separator or " "
 
-        return (
-            f"{str_quote}{str(value)}{str_quote}"
-            if self.arg_type != self.FILE
-            else f"{str_quote}{str(value.filepath)}{str_quote}"
-        )
-
-    def __process_array_value(self, value: Any, str_quote="") -> str:
-        itm_sep = self.item_separator or " "
-        str_value_list = [
-            (
-                f"{str_quote}{str(v)}{str_quote}"
-                if self.arg_type != self.FILE
-                else f"{str_quote}{str(v.filepath)}{str_quote}"
+            return itm_sep.join(
+                [self._process_each_value(v, str_quote) for v in value]
             )
-            for v in value
-        ]
 
-        return itm_sep.join(str_value_list)
+        return self._process_each_value(value, str_quote)
+
+    def _process_each_value(self, value: Any, str_quote="") -> str:
+        if self.arg_type == self.FILE:
+            if isinstance(value, str):
+                return f"{str_quote}{value}{str_quote}"
+            return f"{str_quote}{value.filepath}{str_quote}"
+
+        return f"{str_quote}{value}{str_quote}"
 
     def __lt__(self, other) -> bool:
         if self.position is None:
             return other.position is not None
-        return True if other.position is None else self.position < other.position
+        return (
+            True if other.position is None else self.position < other.position
+        )
 
 
 OutputArgument = namedtuple("Output", ["arg_id", "arg_type", "array"])
-
-
-class InvalidCWL(Exception):
-    """Exception for invalid CWL file"""
-
-    def __init__(self, message: str) -> None:
-        """Exception for invalid CWL file
-
-        Args:
-            message (str): Error message
-        """
-        super().__init__(message)
 
 
 class ArgumentMissing(Exception):
@@ -187,7 +175,7 @@ class ArgumentMissing(Exception):
 class CWLApp:
     """Class to represent a CWL Command Line Tool and run it using Parsl"""
 
-    def __init__(self, cwl_file: str) -> None:
+    def __init__(self, cwl_file: str, executor: Executor) -> None:
         """Command Line Tool
 
         Args:
@@ -195,33 +183,36 @@ class CWLApp:
         """
 
         with open(cwl_file, "r", encoding="utf-8") as f:
-            cwl = yaml.safe_load(f)
+            cwl_content = yaml.safe_load(f)
 
-        self.validate_cwl(cwl)
+        validate(cwl_content)
 
-        self.__file = cwl_file
-        self.__cwl = cwl
-        self.__version = self.__cwl["cwlVersion"]
-        self.__base_command = None
-        self.__inputs: List[InputArgument] = None
-        self.__outputs: List[OutputArgument] = None
+        self._file_name = cwl_file
+        self._cwl = cwl_content
+        self._version = self._cwl["cwlVersion"]
+        self._base_command = None
+        self._inputs: List[InputArgument] = None
+        self._outputs: List[OutputArgument] = None
+        self._executor = executor
+        self._stdout = None
+        self._stderr = None
 
-        self.__set_cwl_args__()
+        self._set_cwl_args()
 
-    def __set_cwl_args__(self) -> None:
-        if isinstance(self.__cwl["baseCommand"], list):
-            self.__base_command = " ".join(self.__cwl["baseCommand"])
+    def _set_cwl_args(self) -> None:
+        if isinstance(self._cwl["baseCommand"], list):
+            self._base_command = " ".join(self._cwl["baseCommand"])
         else:
-            self.__base_command = self.__cwl["baseCommand"]
+            self._base_command = self._cwl["baseCommand"]
 
-        self.__set_inputs(self.__cwl["inputs"])
-        if "outputs" in self.__cwl:
-            self.__set_outputs(self.__cwl["outputs"])
+        self.__set_inputs(self._cwl["inputs"])
+        if "outputs" in self._cwl:
+            self.__set_outputs(self._cwl["outputs"])
 
     def __str__(self) -> str:
-        return pprint.pformat(self.__cwl)
+        return pprint.pformat(self._cwl)
 
-    def __call__(self, **kwargs: Any):
+    def __call__(self, fn, **kwargs: Any):
         """Run the CWL CommandLineTool using Parsl
 
         Expects: input and output arguments mentioned in the CWL file
@@ -230,153 +221,12 @@ class CWLApp:
         the input and output arguments in the CWL file.
         """
 
-        @bash_app
-        def __parsl_bash_app__(
-            command: str,
-            stdout: str = None,
-            stderr: str = None,
-            inputs: List[File] = None,
-            outputs: List[File] = None,
-        ) -> str:
-            return command
-
         args = self.__get_parsl_bash_app_args(**kwargs)
-        return __parsl_bash_app__(**args)
+        return self._executor.submit(fn, **args)
 
-    @classmethod
-    def validate_cwl(cls, cwl_content: Dict[str, any]) -> Dict[str, any]:
-        """Check if CWL is valid.
-
-        Args:
-            cwl_content (Dict[str, Any]): CWL file for the command
-
-        Raises:
-            schema.SchemaError if CWL is invalid
-
-        Returns:
-            Dict[str, Any]: Original CWL contents if valid
-        """
-
-        input_binding_schema = And(
-            {
-                Opt("position"): int,
-                Opt("prefix"): str,
-                Opt("separate"): bool,
-                Opt("itemSeparator"): str,
-            },
-            len,
-            error="Empty inputBinding.",
-        )
-
-        input_simple_types = [
-            "array",
-            "boolean",
-            "int",
-            "long",
-            "float",
-            "double",
-            "string",
-            "File",
-        ]
-        input_array_types = [f"{t}[]" for t in input_simple_types]
-        input_optional_types = [f"{t}?" for t in input_simple_types]
-
-        input_types_schema = Or(
-            *input_simple_types,
-            *input_array_types,
-            *input_optional_types,
-            error=(
-                "Invalid type for input."
-                "Should be one of array, boolean, int, long, float, double, string, File"
-                "Can be optional or array of these types"
-            ),
-        )
-
-        output_types_schema = Or(
-            "stdout",
-            "stderr",
-            "File",
-            "File[]",
-            "array",
-            error=(
-                "Invalid type for output."
-                "Should be stdout, stderr, File, File[] or array with items of type File"
-            ),
-        )
-
-        cmd_line_tool_schema = Schema(
-            {
-                "cwlVersion": Regex(r"^v[0-9]+(\.[0-9]+){0,2}$", error="Invalid CWL Version"),
-                "baseCommand": Or([str], str, error="Invalid type for Base Command"),
-                "class": And(
-                    str,
-                    lambda cls: cls == "CommandLineTool",
-                    error="Invalid type for class. Should be 'CommandLineTool'.",
-                ),
-                "inputs": Or(
-                    {
-                        Regex(
-                            r"^[a-zA-Z_][a-zA-Z0-9_]*$",
-                        ): {
-                            "type": input_types_schema,
-                            Opt("items"): Or(*input_simple_types),
-                            Opt("default"): Or(
-                                int, float, str, bool, list, error="Invalid default value"
-                            ),
-                            Opt("inputBinding"): input_binding_schema,
-                        }
-                    },
-                    [
-                        {
-                            "id": Regex(
-                                r"^[a-zA-Z_][a-zA-Z0-9_]*$",
-                            ),
-                            "type": input_types_schema,
-                            Opt("items"): Or(*input_simple_types),
-                            Opt("default"): Or(
-                                int, float, str, bool, list, error="Invalid default value"
-                            ),
-                            Opt("inputBinding"): input_binding_schema,
-                        }
-                    ],
-                    error=("Invalid/Empty 'inputs'."),
-                ),
-                "outputs": Or(
-                    {
-                        Regex(
-                            r"^[a-zA-Z_][a-zA-Z0-9_]*$",
-                        ): {
-                            "type": output_types_schema,
-                            Opt("items"): "File",
-                            Opt("outputBinding"): any,
-                        }
-                    },
-                    [
-                        {
-                            "id": Regex(
-                                r"^[a-zA-Z_][a-zA-Z0-9_]*$",
-                            ),
-                            "type": output_types_schema,
-                            Opt("items"): "File",
-                            Opt("outputBinding"): any,
-                        }
-                    ],
-                    error=("Invalid/Empty 'outputs'."),
-                ),
-                Opt(any): any,
-            },
-        )
-
-        try:
-            return cmd_line_tool_schema.validate(cwl_content)
-
-        except SchemaError as e:
-            raise InvalidCWL(
-                "Invalid Cwl File for Command Line Tools\n"
-                + "\n".join({exp for exp in e.errors if exp})
-            ) from None
-
-    def __set_inputs(self, cwl_inputs: Union[List[Dict[str, Any]], Dict[str, any]]) -> None:
+    def __set_inputs(
+        self, cwl_inputs: Union[List[Dict[str, Any]], Dict[str, any]]
+    ) -> None:
         """Set input options from CWL
 
         Args:
@@ -397,7 +247,9 @@ class CWLApp:
             default = input_arg.get("default", None)
             position = input_arg.get("inputBinding", {}).get("position", None)
             prefix = input_arg.get("inputBinding", {}).get("prefix", None)
-            item_separator = input_arg.get("inputBinding", {}).get("itemSeparator", None)
+            item_separator = input_arg.get("inputBinding", {}).get(
+                "itemSeparator", None
+            )
             separate = input_arg.get("inputBinding", {}).get("separate", True)
 
             return InputArgument(
@@ -413,17 +265,23 @@ class CWLApp:
             )
 
         if isinstance(cwl_inputs, list):
-            inputs.extend(process_input(input_arg["id"], input_arg) for input_arg in cwl_inputs)
+            inputs.extend(
+                process_input(input_arg["id"], input_arg)
+                for input_arg in cwl_inputs
+            )
 
         elif isinstance(cwl_inputs, dict):
             inputs.extend(
-                process_input(id, input_arg_opts) for id, input_arg_opts in cwl_inputs.items()
+                process_input(id, input_arg_opts)
+                for id, input_arg_opts in cwl_inputs.items()
             )
 
         inputs.sort()
-        self.__inputs = inputs
+        self._inputs = inputs
 
-    def __set_outputs(self, cwl_outputs: Union[List[Dict[str, Any]], Dict[str, any]]) -> None:
+    def __set_outputs(
+        self, cwl_outputs: Union[List[Dict[str, Any]], Dict[str, any]]
+    ) -> None:
         """Set output options from CWL
 
         Args:
@@ -445,15 +303,17 @@ class CWLApp:
 
         if isinstance(cwl_outputs, list):
             outputs.extend(
-                process_output(output_arg["id"], output_arg) for output_arg in cwl_outputs
+                process_output(output_arg["id"], output_arg)
+                for output_arg in cwl_outputs
             )
 
         elif isinstance(cwl_outputs, dict):
             outputs.extend(
-                process_output(id, output_arg_opts) for id, output_arg_opts in cwl_outputs.items()
+                process_output(id, output_arg_opts)
+                for id, output_arg_opts in cwl_outputs.items()
             )
 
-        self.__outputs = outputs
+        self._outputs = outputs
 
     @property
     def command_template(self) -> str:
@@ -463,19 +323,29 @@ class CWLApp:
             str: template string to show example usage
         """
         return (
-            f"COMMAND TEMPLATE:\n{self.__base_command} "
-            f"{' '.join([input_arg.to_string_template() for input_arg in self.__inputs])}"
+            f"COMMAND TEMPLATE:\n{self._base_command} "
+            f"{' '.join([input_arg.to_string_template() for input_arg in self._inputs])}"
         )
 
     @property
     def cwl_version(self) -> str:
         """CWL version"""
-        return self.__version
+        return self._version
 
     @property
     def cwl_file_name(self) -> str:
         """CWL file name"""
-        return os.path.basename(self.__file)
+        return os.path.basename(self._file_name)
+
+    @property
+    def stdout_filename(self) -> str:
+        """stdout file name is created only after the execution of the cwl"""
+        return None if self._stdout is None else self._stdout
+
+    @property
+    def stderr_filename(self) -> str:
+        """stderr file name is created only after the execution of the cwl"""
+        return self._stderr
 
     def get_command(self, **kwargs) -> str:
         """Shell command to be run.
@@ -486,7 +356,7 @@ class CWLApp:
             str: string of the shell command that is to be run
         """
         input_args = []
-        for input_arg in self.__inputs:
+        for input_arg in self._inputs:
             if input_arg.arg_id in kwargs:
                 input_args.append(input_arg.to_string(kwargs[input_arg.arg_id]))
 
@@ -497,9 +367,11 @@ class CWLApp:
                 continue
 
             else:
-                raise ArgumentMissing(f"missing required value for argument: {input_arg.arg_id}")
+                raise ArgumentMissing(
+                    f"missing required value for argument: {input_arg.arg_id}"
+                )
 
-        return f"{self.__base_command} {' '.join(filter(None, input_args))}"
+        return f"{self._base_command} {' '.join(filter(None, input_args))}"
 
     def __get_parsl_bash_app_args(self, **kwargs) -> Dict[str, Any]:
         """Args needed to run the command using Parsl
@@ -516,52 +388,57 @@ class CWLApp:
                 }
         """
 
+        # Check if all the output arguments are provided
+        for output_arg in self._outputs:
+            # handle stdout and stderr
+            if output_arg.arg_type == "stdout":
+                if output_arg.arg_id not in kwargs:
+                    self._stdout = f"stdout_{self._file_name}.txt"
+                else:
+                    self._stdout = kwargs[output_arg.arg_id]
+
+            elif output_arg.arg_type == "stderr":
+                if output_arg.arg_id not in kwargs:
+                    self._stderr = f"stderr_{self._file_name}.txt"
+                else:
+                    self._stderr = kwargs[output_arg.arg_id]
+
+            elif (
+                output_arg.arg_type == "File"
+                and output_arg.arg_id not in kwargs
+            ):
+                raise ArgumentMissing(
+                    f"missing required value for argument: {output_arg.arg_id}"
+                )
+
         def handle_input_output_files(file):
             if file.arg_type != "File" or file.arg_id not in kwargs:
                 return []
 
             if file.array:
+                files = []
                 for f in kwargs[file.arg_id]:
-                    if not isinstance(f, (File, DataFuture)):
-                        raise TypeError(f"{file.arg_id}: Expected list[{File}] type, got {type(f)}")
+                    if isinstance(f, str):
+                        files.append(File(f))
+                    else:
+                        files.append(f)
 
-                return kwargs[file.arg_id]
+                return files
 
-            if not isinstance(kwargs[file.arg_id], (File, DataFuture)):
-                raise TypeError(
-                    f"{file.arg_id}: Expected {File} type, got {type(kwargs[file.arg_id])}"
-                )
+            # convert str to Parsl File
+            if isinstance(kwargs[file.arg_id], str):
+                return [File(kwargs[file.arg_id])]
 
             return [kwargs[file.arg_id]]
 
-        # Check if all the output arguments are provided
-        stdout = None
-        stderr = None
-        for output_arg in self.__outputs:
-            # handle stdout and stderr
-            if output_arg.arg_type == "stdout":
-                if output_arg.arg_id not in kwargs:
-                    raise ArgumentMissing("missing required value for argument: stdout")
-
-                stdout = kwargs[output_arg.arg_id]
-
-            elif output_arg.arg_type == "stderr":
-                if output_arg.arg_id not in kwargs:
-                    raise ArgumentMissing("missing required value for argument: stderr")
-
-                stderr = kwargs[output_arg.arg_id]
-
-            elif output_arg.arg_type == "File" and output_arg.arg_id not in kwargs:
-                raise ArgumentMissing(f"missing required value for argument: {output_arg.arg_id}")
-
         # list input files
         input_files = []
-        for file in self.__inputs:
+        for file in self._inputs:
             input_files.extend(handle_input_output_files(file))
 
         # list output files
         output_files = []
-        for file in self.__outputs:
+        for file in self._outputs:
             output_files.extend(handle_input_output_files(file))
 
         # get command string
@@ -569,8 +446,8 @@ class CWLApp:
 
         cmd_args = {
             "command": command,
-            "stdout": stdout,
-            "stderr": stderr,
+            "stdout": self._stdout,
+            "stderr": self._stderr,
             "inputs": input_files,
             "outputs": output_files,
         }
