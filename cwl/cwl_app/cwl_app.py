@@ -5,9 +5,9 @@ import pprint
 from collections import namedtuple
 from concurrent.futures import Executor
 from typing import Any, Dict, List, Optional, Union
+from uuid import uuid4
 
 import yaml
-from parsl.app.futures import DataFuture
 from parsl.data_provider.files import File
 
 from cwl.cwl_app.validate import validate
@@ -110,12 +110,12 @@ class InputArgument:
             value (Any, optional): input arg value. Defaults to None.
         """
         if self.arg_type == self.BOOLEAN:
-            return self.__boolean_to_string(value)
+            return self._boolean_to_string(value)
 
         if value is None:
             value = self.default
 
-        res_string = self.__process_value(
+        res_string = self._process_value(
             value, str_quote='"' if self.arg_type == self.STRING else ""
         )
 
@@ -128,10 +128,10 @@ class InputArgument:
 
         return res_string
 
-    def __boolean_to_string(self, value: Any) -> str:
+    def _boolean_to_string(self, value: Any) -> str:
         return str(self.prefix) if value else ""
 
-    def __process_value(self, value: Any, str_quote="") -> str:
+    def _process_value(self, value: Any, str_quote="") -> str:
         if self.array:
             itm_sep = self.item_separator or " "
 
@@ -175,42 +175,56 @@ class ArgumentMissing(Exception):
 class CWLApp:
     """Class to represent a CWL Command Line Tool and run it using Parsl"""
 
-    def __init__(self, cwl_file: str, executor: Executor) -> None:
+    def __init__(self, cwl: str | Dict[str, Any], executor: Executor) -> None:
         """Command Line Tool
 
         Args:
-            cwl_file (str): CWL specs file for the Command Line Tool
+            cwl (str | Dict[str, Any]):
+                Path to the CWL file or
+                CWL file content represented as a dictionary
+
+            executor (Executor): Parsl executor
         """
 
-        with open(cwl_file, "r", encoding="utf-8") as f:
-            cwl_content = yaml.safe_load(f)
+        if isinstance(cwl, dict):
+            cwl_content = cwl
+
+        else:
+            with open(cwl, "r", encoding="utf-8") as f:
+                cwl_content = yaml.safe_load(f)
 
         validate(cwl_content)
 
-        self._file_name = cwl_file
-        self._cwl = cwl_content
-        self._version = self._cwl["cwlVersion"]
+        self._file_name = cwl
+        self._cwl_content = cwl_content
+        self._version = self._cwl_content["cwlVersion"]
         self._base_command = None
-        self._inputs: List[InputArgument] = None
-        self._outputs: List[OutputArgument] = None
+        self._arguments: List[str] = []
+        self._inputs: List[InputArgument] = []
+        self._outputs: List[OutputArgument] = []
         self._executor = executor
         self._stdout = None
         self._stderr = None
+        self.run_ids = []
 
         self._set_cwl_args()
 
     def _set_cwl_args(self) -> None:
-        if isinstance(self._cwl["baseCommand"], list):
-            self._base_command = " ".join(self._cwl["baseCommand"])
+        if isinstance(self._cwl_content["baseCommand"], list):
+            self._base_command = " ".join(self._cwl_content["baseCommand"])
         else:
-            self._base_command = self._cwl["baseCommand"]
+            self._base_command = self._cwl_content["baseCommand"]
 
-        self.__set_inputs(self._cwl["inputs"])
-        if "outputs" in self._cwl:
-            self.__set_outputs(self._cwl["outputs"])
+        if "arguments" in self._cwl_content:
+            self._arguments = self._cwl_content["arguments"]
+
+        self._set_inputs(self._cwl_content["inputs"])
+
+        if "outputs" in self._cwl_content:
+            self._set_outputs(self._cwl_content["outputs"])
 
     def __str__(self) -> str:
-        return pprint.pformat(self._cwl)
+        return pprint.pformat(self._cwl_content)
 
     def __call__(self, fn, **kwargs: Any):
         """Run the CWL CommandLineTool using Parsl
@@ -220,11 +234,13 @@ class CWLApp:
         Make sure to use the same names for function parameters as
         the input and output arguments in the CWL file.
         """
+        run_id = uuid4()
+        self.run_ids.append(run_id)
 
-        args = self.__get_parsl_bash_app_args(**kwargs)
+        args = self._get_parsl_bash_app_args(**kwargs)
         return self._executor.submit(fn, **args)
 
-    def __set_inputs(
+    def _set_inputs(
         self, cwl_inputs: Union[List[Dict[str, Any]], Dict[str, any]]
     ) -> None:
         """Set input options from CWL
@@ -279,7 +295,7 @@ class CWLApp:
         inputs.sort()
         self._inputs = inputs
 
-    def __set_outputs(
+    def _set_outputs(
         self, cwl_outputs: Union[List[Dict[str, Any]], Dict[str, any]]
     ) -> None:
         """Set output options from CWL
@@ -324,6 +340,7 @@ class CWLApp:
         """
         return (
             f"COMMAND TEMPLATE:\n{self._base_command} "
+            f"{' '.join(self._arguments) if self._arguments else ''} "
             f"{' '.join([input_arg.to_string_template() for input_arg in self._inputs])}"
         )
 
@@ -339,12 +356,14 @@ class CWLApp:
 
     @property
     def stdout_filename(self) -> str:
-        """stdout file name is created only after the execution of the cwl"""
+        """Returns the stdout file name from the most recent run.
+        stdout file name is created only after the execution of the cwl"""
         return None if self._stdout is None else self._stdout
 
     @property
     def stderr_filename(self) -> str:
-        """stderr file name is created only after the execution of the cwl"""
+        """Returns the stderr file name from the most recent run.
+        stderr file name is created only after the execution of the cwl"""
         return self._stderr
 
     def get_command(self, **kwargs) -> str:
@@ -371,9 +390,19 @@ class CWLApp:
                     f"missing required value for argument: {input_arg.arg_id}"
                 )
 
-        return f"{self._base_command} {' '.join(filter(None, input_args))}"
+        # filter out None values
+        return " ".join(
+            filter(
+                None,
+                [
+                    self._base_command,
+                    f"{' '.join(filter(None, self._arguments))}",
+                    f"{' '.join(filter(None, input_args))}",
+                ],
+            )
+        )
 
-    def __get_parsl_bash_app_args(self, **kwargs) -> Dict[str, Any]:
+    def _get_parsl_bash_app_args(self, **kwargs) -> Dict[str, Any]:
         """Args needed to run the command using Parsl
 
         kwargs: values for inputs and outputs mentioned in the CWL file
@@ -393,13 +422,17 @@ class CWLApp:
             # handle stdout and stderr
             if output_arg.arg_type == "stdout":
                 if output_arg.arg_id not in kwargs:
-                    self._stdout = f"stdout_{self._file_name}.txt"
+                    self._stdout = (
+                        f"stdout_{self._file_name}_{self.run_ids[-1]}.txt"
+                    )
                 else:
                     self._stdout = kwargs[output_arg.arg_id]
 
             elif output_arg.arg_type == "stderr":
                 if output_arg.arg_id not in kwargs:
-                    self._stderr = f"stderr_{self._file_name}.txt"
+                    self._stderr = (
+                        f"stderr_{self._file_name}_{self.run_ids[-1]}.txt"
+                    )
                 else:
                     self._stderr = kwargs[output_arg.arg_id]
 

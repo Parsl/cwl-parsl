@@ -90,6 +90,9 @@ def validate(cwl_content: Dict[str, any]) -> Dict[str, any]:
                 lambda cls: cls == "CommandLineTool",
                 error="Invalid type for class. Should be 'CommandLineTool'.",
             ),
+            Opt("arguments"): Or(
+                [str], str, error="Invalid type for arguments"
+            ),
             "inputs": Or(
                 {
                     Regex(
