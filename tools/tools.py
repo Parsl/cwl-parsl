@@ -3,13 +3,24 @@
 import os
 
 from cwl import CWLApp
+from cwl.executors.executor import create_executor
 
 # Create CommandLineTool objects CWL files
 
-cat = CWLApp(os.path.join("tools", "cwl_files", "cat.cwl"))
+executor = create_executor(
+    {
+        "executor": "parsl",
+        "config": {
+            "type": "thread",
+            "options": {},
+        },
+    }
+)
 
-find = CWLApp(os.path.join("tools", "cwl_files", "find.cwl"))
+cat = CWLApp(os.path.join("tools", "cwl_files", "cat.cwl"), executor)
 
-touch = CWLApp(os.path.join("tools", "cwl_files", "touch.cwl"))
+find = CWLApp(os.path.join("tools", "cwl_files", "find.cwl"), executor)
 
-wc = CWLApp(os.path.join("tools", "cwl_files", "wc.cwl"))
+touch = CWLApp(os.path.join("tools", "cwl_files", "touch.cwl"), executor)
+
+wc = CWLApp(os.path.join("tools", "cwl_files", "wc.cwl"), executor)
