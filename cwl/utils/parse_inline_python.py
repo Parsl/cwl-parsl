@@ -113,10 +113,11 @@ def create_mapping(cwl: Dict[str, Any], inputs: Dict[str, Any]) -> Dict:
     for ref in all_references:
         value = get_matching_value(inputs, ref)
 
-        if value is not None:
-            mapping[ref] = value
-        else:
-            raise KeyError(f"Reference '{ref}' not found in inputs.")
+        mapping[ref] = value
+        # if value is not None:
+        #     mapping[ref] = value
+        # else:
+        #     raise KeyError(f"Reference '{ref}' not found in inputs.")
 
     return mapping
 
@@ -144,8 +145,8 @@ def resolve_yaml_references(expression: str, mapping: Dict[str, Any]) -> str:
             return repr(
                 mapping[reference]
             )  # Use repr to ensure proper quoting in eval context
-        else:
-            raise KeyError(f"Reference '{reference}' not found in mapping.")
+        # else:
+        #     raise KeyError(f"Reference '{reference}' not found in mapping.")
 
     return re.sub(reference_pattern, replace_reference, expression)
 
