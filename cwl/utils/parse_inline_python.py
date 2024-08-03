@@ -170,7 +170,7 @@ def evaluate_expression(expression: str, namespace: Dict[str, Any]) -> Any:
 
     except Exception as e:
         print(f"Error evaluating expression '{expression}': {e}")
-        return expression
+        raise e
 
 
 def evaluate_yaml_expressions(
