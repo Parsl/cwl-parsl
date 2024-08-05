@@ -27,7 +27,7 @@ def run(
     return (app, fut)
 
 
-def create_cwl_app(cwl: str, executor: Executor) -> CWLApp:
+def create_cwl_app(cwl: str, executor: Executor | None = None) -> CWLApp:
     """Create CWL App for the given cwl file
 
     Args:
@@ -37,6 +37,8 @@ def create_cwl_app(cwl: str, executor: Executor) -> CWLApp:
     Returns:
         CWLApp: CWLApp object
     """
+    if executor is None:
+        executor = _create_new_executor()
 
     return CWLApp(cwl, executor)
 

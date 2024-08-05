@@ -90,6 +90,7 @@ def validate(cwl_content: Dict[str, any]) -> Dict[str, any]:
                 lambda cls: cls == "CommandLineTool",
                 error="Invalid type for class. Should be 'CommandLineTool'.",
             ),
+            Opt("doc"): str,
             Opt("arguments"): Or(
                 [str], str, error="Invalid type for arguments"
             ),
@@ -99,6 +100,7 @@ def validate(cwl_content: Dict[str, any]) -> Dict[str, any]:
                         r"^[a-zA-Z_][a-zA-Z0-9_]*$",
                     ): {
                         "type": input_types_schema,
+                        Opt("doc"): str,
                         Opt("items"): Or(*input_simple_types),
                         Opt("default"): Or(
                             int,
@@ -108,6 +110,7 @@ def validate(cwl_content: Dict[str, any]) -> Dict[str, any]:
                             list,
                             error="Invalid default value",
                         ),
+                        Opt("validate"): str,
                         Opt("inputBinding"): input_binding_schema,
                     }
                 },
@@ -117,6 +120,7 @@ def validate(cwl_content: Dict[str, any]) -> Dict[str, any]:
                             r"^[a-zA-Z_][a-zA-Z0-9_]*$",
                         ),
                         "type": input_types_schema,
+                        Opt("doc"): str,
                         Opt("items"): Or(*input_simple_types),
                         Opt("default"): Or(
                             int,
@@ -131,12 +135,13 @@ def validate(cwl_content: Dict[str, any]) -> Dict[str, any]:
                 ],
                 error=("Invalid/Empty 'inputs'."),
             ),
-            "outputs": Or(
+            Opt("outputs"): Or(
                 {
                     Regex(
                         r"^[a-zA-Z_][a-zA-Z0-9_]*$",
                     ): {
                         "type": output_types_schema,
+                        Opt("doc"): str,
                         Opt("items"): "File",
                         Opt("outputBinding"): any,
                     }
@@ -147,6 +152,7 @@ def validate(cwl_content: Dict[str, any]) -> Dict[str, any]:
                             r"^[a-zA-Z_][a-zA-Z0-9_]*$",
                         ),
                         "type": output_types_schema,
+                        Opt("doc"): str,
                         Opt("items"): "File",
                         Opt("outputBinding"): any,
                     }

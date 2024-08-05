@@ -8,6 +8,7 @@ from typing import Any, Dict, List, Optional, Union
 from uuid import uuid4
 
 import yaml
+from parsl.app.futures import DataFuture
 from parsl.data_provider.files import File
 
 from cwl.cwl_app.validate import validate
@@ -129,7 +130,7 @@ class InputArgument:
         return res_string
 
     def _boolean_to_string(self, value: Any) -> str:
-        return str(self.prefix) if value else ""
+        return str(self.prefix) if value and self.prefix else ""
 
     def _process_value(self, value: Any, str_quote="") -> str:
         if self.array:
@@ -142,9 +143,7 @@ class InputArgument:
         return self._process_each_value(value, str_quote)
 
     def _process_each_value(self, value: Any, str_quote="") -> str:
-        if self.arg_type == self.FILE:
-            if isinstance(value, str):
-                return f"{str_quote}{value}{str_quote}"
+        if isinstance(value, (File, DataFuture)):
             return f"{str_quote}{value.filepath}{str_quote}"
 
         return f"{str_quote}{value}{str_quote}"
@@ -436,13 +435,13 @@ class CWLApp:
                 else:
                     self._stderr = kwargs[output_arg.arg_id]
 
-            elif (
-                output_arg.arg_type == "File"
-                and output_arg.arg_id not in kwargs
-            ):
-                raise ArgumentMissing(
-                    f"missing required value for argument: {output_arg.arg_id}"
-                )
+            # elif (
+            #     output_arg.arg_type == "File"
+            #     and output_arg.arg_id not in kwargs
+            # ):
+            #     raise ArgumentMissing(
+            #         f"missing required value for argument: {output_arg.arg_id}"
+            #     )
 
         def handle_input_output_files(file):
             if file.arg_type != "File" or file.arg_id not in kwargs:

@@ -4,7 +4,7 @@ from typing import Any, Dict
 from cwl.executors.parsl import CWLExecutor, ParslConfig
 
 
-def create_executor(config_options: Dict[str, Any]) -> Executor:
+def create_executor(config_options: Dict[str, Any] | None = None) -> Executor:
     """Create an executor object
 
     Args:
@@ -17,6 +17,11 @@ def create_executor(config_options: Dict[str, Any]) -> Executor:
             }
         }
     """
+    if config_options is None:
+        return CWLExecutor(
+            ParslConfig({"type": "thread", "options": {}}).get_config()
+        )
+
     executor = config_options["executor"]
     config = config_options["config"]
 
