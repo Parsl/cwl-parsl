@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any, Callable, Dict
 
 import parsl
+import parsl.executors
 from parsl.app.bash import BashApp
 from parsl.concurrent import ParslPoolExecutor
 

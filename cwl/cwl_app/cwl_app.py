@@ -174,6 +174,17 @@ class ArgumentMissing(Exception):
 class CWLApp:
     """Class to represent a CWL Command Line Tool and run it using Parsl"""
 
+    @classmethod
+    def _bash_app(
+        cls,
+        command: str,
+        stdout: str,
+        stderr: str,
+        inputs,
+        outputs,
+    ):
+        return command
+
     def __init__(self, cwl: str | Dict[str, Any], executor: Executor) -> None:
         """Command Line Tool
 
@@ -225,7 +236,7 @@ class CWLApp:
     def __str__(self) -> str:
         return pprint.pformat(self._cwl_content)
 
-    def __call__(self, fn, **kwargs: Any):
+    def __call__(self, **kwargs: Any):
         """Run the CWL CommandLineTool using Parsl
 
         Expects: input and output arguments mentioned in the CWL file
@@ -237,7 +248,7 @@ class CWLApp:
         self.run_ids.append(run_id)
 
         args = self._get_parsl_bash_app_args(**kwargs)
-        return self._executor.submit(fn, **args)
+        return self._executor.submit(self._bash_app, **args)
 
     def _set_inputs(
         self, cwl_inputs: Union[List[Dict[str, Any]], Dict[str, any]]

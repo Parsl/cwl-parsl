@@ -6,7 +6,6 @@ from pydantic import ValidationError
 
 from cwl.cwl_app import CWLApp
 from cwl.executors.executor import create_executor as _create_new_executor
-from cwl.run.config import Config
 from cwl.run.parse import parse_args
 
 
@@ -62,26 +61,7 @@ def create_executor(executor_options: Dict[str, Any]) -> Executor:
     return _create_new_executor(executor_options)
 
 
-def create_config(
-    executor_options: Dict[str, Any],
-    cwl_content: Dict[str, Any],
-    inputs_content: Dict[str, Any],
-) -> Config:
-    """Create a config object
-
-    Args:
-        executor_options (Dict[str, Any]): Config options for the executor
-        cwl_content (Dict[str, Any]): CWL content parsed from the file
-        inputs_content (Dict[str, Any]): Inputs content parsed from the file
-    """
-
-    executor = create_executor(executor_options)
-
-    return Config(executor, cwl_content, inputs_content)
-
-
 def main(argv: Sequence[str] | None = None) -> None:
-    # TODO: cache bash app and run everything from here
     executor_config_file, cwl_file, inputs_file = argv or sys.argv[1:]
 
     try:
@@ -89,9 +69,9 @@ def main(argv: Sequence[str] | None = None) -> None:
             executor_config_file, cwl_file, inputs_file
         )
 
-        config = create_config(executor_options, cwl_content, inputs_content)
-        app = create_cwl_app(config.get_cwl(), config.get_executor())
-        return (app, config.get_inputs())
+        executor = create_executor(executor_options)
+        app = create_cwl_app(cwl_content, executor)
+        return (app, inputs_content)
 
     except ValidationError as e:
         print(e)
